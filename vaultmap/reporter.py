@@ -1,66 +1,104 @@
-"""Output formatting and reporting for scan results."""
+"""Reporting utilities for scan results."""
+
+from __future__ import annotations
 
 import json
-from typing import TextIO
 import sys
+from typing import TYPE_CHECKING
 
-from vaultmap.scanner import ScanResult, Match
+if TYPE_CHECKING:
+    from vaultmap.scanner import ScanResult
+    from vaultmap.git_history import GitScanResult
 
-SEVERITY_COLORS = {
-    "high": "\033[91m",    # red
-    "medium": "\033[93m",  # yellow
-    "low": "\033[94m",     # blue
+_COLORS = {
+    "critical": "\033[91m",
+    "high": "\033[93m",
+    "medium": "\033[94m",
+    "low": "\033[96m",
+    "reset": "\033[0m",
+    "bold": "\033[1m",
 }
-RESET = "\033[0m"
-BOLD = "\033[1m"
 
 
-def _colorize(text: str, severity: str, use_color: bool) -> str:
-    if not use_color:
+def _colorize(text: str, color: str) -> str:
+    if not sys.stdout.isatty():
         return text
-    color = SEVERITY_COLORS.get(severity, "")
-    return f"{color}{text}{RESET}"
+    code = _COLORS.get(color, "")
+    return f"{code}{text}{_COLORS['reset']}"
 
 
-def print_text_report(result: ScanResult, out: TextIO = sys.stdout, use_color: bool = True) -> None:
-    """Print a human-readable report to the given output stream."""
-    out.write(f"\n{BOLD}VaultMap Scan Report{RESET}\n" if use_color else "\nVaultMap Scan Report\n")
-    out.write(f"Files scanned : {result.scanned_files}\n")
-    out.write(f"Total findings: {len(result.matches)}\n\n")
-
+def print_text_report(result: "ScanResult") -> None:
+    """Print a human-readable report for a filesystem scan."""
+    print(_colorize(f"\nVaultMap Scan — {result.root_path}", "bold"))
+    print(f"  Files scanned : {result.files_scanned}")
+    print(f"  Total matches : {result.total_matches}")
     if not result.has_findings:
-        out.write("No secrets found.\n")
+        print(_colorize("  ✓ No credentials found.", "low"))
         return
-
-    for severity in ("high", "medium", "low"):
-        findings = result.by_severity(severity)
-        if not findings:
-            continue
-        label = _colorize(f"[{severity.upper()}]", severity, use_color)
-        out.write(f"{label} {len(findings)} finding(s)\n")
-        for match in findings:
-            out.write(f"  {match.file_path}:{match.line_number}\n")
-            out.write(f"    Pattern : {match.pattern.description}\n")
-            out.write(f"    Match   : {match.matched_text[:80]}\n")
-            out.write(f"    Context : {match.line_content[:100]}\n\n")
+    for match in sorted(result.matches, key=lambda m: m.severity):
+        sev = _colorize(match.severity.upper(), match.severity)
+        print(f"  [{sev}] {match.file}:{match.line_number}  {match.pattern_name}")
+        print(f"         {match.line_content[:120]}")
 
 
-def print_json_report(result: ScanResult, out: TextIO = sys.stdout) -> None:
-    """Print a JSON-formatted report."""
+def print_json_report(result: "ScanResult") -> None:
+    """Print a JSON report for a filesystem scan."""
     data = {
-        "scanned_files": result.scanned_files,
-        "total_findings": len(result.matches),
-        "findings": [
+        "root_path": result.root_path,
+        "files_scanned": result.files_scanned,
+        "total_matches": result.total_matches,
+        "matches": [
             {
-                "file": m.file_path,
-                "line": m.line_number,
-                "pattern": m.pattern.name,
-                "severity": m.pattern.severity,
-                "description": m.pattern.description,
-                "matched_text": m.matched_text,
+                "file": m.file,
+                "line_number": m.line_number,
+                "pattern_name": m.pattern_name,
+                "severity": m.severity,
+                "line_content": m.line_content,
             }
             for m in result.matches
         ],
     }
-    json.dump(data, out, indent=2)
-    out.write("\n")
+    print(json.dumps(data, indent=2))
+
+
+def print_git_text_report(result: "GitScanResult") -> None:
+    """Print a human-readable report for a git-history scan."""
+    print(_colorize(f"\nVaultMap Git History Scan — {result.repo_path}", "bold"))
+    print(f"  Commits scanned : {result.commits_scanned}")
+    print(f"  Total matches   : {result.total_matches}")
+    if not result.has_findings:
+        print(_colorize("  ✓ No credentials found in git history.", "low"))
+        return
+    for cm in result.commit_matches:
+        print(_colorize(f"\n  Commit {cm.commit_hash[:12]}  {cm.commit_message[:72]}", "bold"))
+        for match in cm.matches:
+            sev = _colorize(match.severity.upper(), match.severity)
+            print(f"    [{sev}] {match.file}  {match.pattern_name}")
+            print(f"           {match.line_content[:120]}")
+
+
+def print_git_json_report(result: "GitScanResult") -> None:
+    """Print a JSON report for a git-history scan."""
+    data = {
+        "repo_path": result.repo_path,
+        "commits_scanned": result.commits_scanned,
+        "total_matches": result.total_matches,
+        "commit_matches": [
+            {
+                "commit_hash": cm.commit_hash,
+                "commit_message": cm.commit_message,
+                "matches": [
+                    {
+                        "file": m.file,
+                        "line_number": m.line_number,
+                        "pattern_name": m.pattern_name,
+                        "severity": m.severity,
+                        "line_content": m.line_content,
+                    }
+                    for m in cm.matches
+                ],
+            }
+            for cm in result.commit_matches
+        ],
+    }
+    print(json.dumps(data, indent=2))
