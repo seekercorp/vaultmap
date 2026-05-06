@@ -27,6 +27,10 @@ AWS_SECRET_ACCESS_KEY = "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
 
 All lines between (and including) the markers are excluded from scanning.
 
+> **Warning**: An `ignore-start` marker without a matching `ignore-end` will
+> suppress all remaining lines in the file and emit a warning.  Always close
+> every block you open.
+
 ## Precedence
 
 Inline suppression is applied **before** the allowlist and baseline checks.
