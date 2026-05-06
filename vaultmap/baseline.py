@@ -36,11 +36,24 @@ def load_baseline(path: str | Path) -> Set[str]:
     """Load a previously saved baseline and return its fingerprint set.
 
     Returns an empty set if the file does not exist.
+
+    Raises:
+        ValueError: If the file exists but contains invalid JSON or an
+            unrecognised baseline version.
     """
     p = Path(path)
     if not p.exists():
         return set()
-    data = json.loads(p.read_text(encoding="utf-8"))
+    try:
+        data = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        raise ValueError(f"Baseline file '{path}' contains invalid JSON: {exc}") from exc
+    version = data.get("version")
+    if version != 1:
+        raise ValueError(
+            f"Unsupported baseline version '{version}' in '{path}'. "
+            "Expected version 1."
+        )
     return set(data.get("fingerprints", []))
 
 
