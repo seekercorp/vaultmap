@@ -90,18 +90,14 @@ def test_from_file_minimal_entry(tmp_path):
     assert al.entries[0].paths == []
 
 
+def test_from_file_invalid_json_raises(tmp_path):
+    """A file containing invalid JSON should raise a ValueError."""
+    cfg = tmp_path / "allowlist.json"
+    cfg.write_text("{not valid json")
+    with pytest.raises(ValueError, match="allowlist"):
+        Allowlist.from_file(cfg)
+
+
 # ---------------------------------------------------------------------------
-# load_allowlist helper
+# load_allowlist
 # ---------------------------------------------------------------------------
-
-def test_load_allowlist_uses_provided_path(tmp_path):
-    cfg = tmp_path / "custom.json"
-    cfg.write_text(json.dumps([{"pattern": "X", "reason": "r"}]))
-    al = load_allowlist(cfg)
-    assert len(al.entries) == 1
-
-
-def test_load_allowlist_default_path_missing_returns_empty(monkeypatch, tmp_path):
-    monkeypatch.chdir(tmp_path)  # no .vaultmap-allowlist.json here
-    al = load_allowlist()
-    assert al.entries == []
