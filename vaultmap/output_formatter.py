@@ -93,3 +93,30 @@ def build_sarif(scan_result: ScanResult) -> dict[str, Any]:
 def print_sarif_report(scan_result: ScanResult) -> None:
     """Print a SARIF-formatted report to stdout."""
     print(json.dumps(build_sarif(scan_result), indent=2))
+
+
+def print_summary_report(scan_result: ScanResult) -> None:
+    """Print a concise human-readable summary of scan results to stdout.
+
+    Groups findings by severity and lists each match with its file path,
+    line number, and pattern name.
+    """
+    matches = scan_result.matches
+    if not matches:
+        print("No findings detected.")
+        return
+
+    severity_order = ["critical", "high", "medium", "low"]
+    grouped: dict[str, list[Match]] = {sev: [] for sev in severity_order}
+    for match in matches:
+        grouped.setdefault(match.severity.lower(), []).append(match)
+
+    print(f"vaultmap scan summary — {len(matches)} finding(s)")
+    print("-" * 50)
+    for sev in severity_order:
+        group = grouped.get(sev, [])
+        if not group:
+            continue
+        print(f"\n[{sev.upper()}] {len(group)} finding(s)")
+        for m in group:
+            print(f"  {m.file_path}:{m.line_number}  {m.pattern_name}")
