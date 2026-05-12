@@ -21,6 +21,10 @@ def build_suppressed_lines(source: str) -> frozenset[int]:
     Supports two forms:
     * Inline:  ``secret = "abc"  # vaultmap: ignore``
     * Block:   ``# vaultmap: ignore-start`` … ``# vaultmap: ignore-end``
+
+    Note: An ``ignore-start`` block that is never closed by ``ignore-end``
+    will suppress all remaining lines from the opening tag to the end of
+    the source.
     """
     suppressed: set[int] = set()
     in_block = False
@@ -55,3 +59,18 @@ def filter_suppressed(
 ) -> list:
     """Remove Match objects whose line number appears in *suppressed*."""
     return [m for m in matches if m.line_number not in suppressed]
+
+
+def is_line_suppressed(source: str, line_number: int) -> bool:
+    """Return ``True`` if *line_number* (1-based) is suppressed in *source*.
+
+    This is a convenience wrapper around :func:`build_suppressed_lines` for
+    callers that only need to check a single line without retaining the full
+    suppression set.
+
+    >>> is_line_suppressed('x = 1  # vaultmap: ignore\ny = 2\n', 1)
+    True
+    >>> is_line_suppressed('x = 1  # vaultmap: ignore\ny = 2\n', 2)
+    False
+    """
+    return line_number in build_suppressed_lines(source)
