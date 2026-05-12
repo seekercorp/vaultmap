@@ -31,6 +31,22 @@ All lines between (and including) the markers are excluded from scanning.
 > suppress all remaining lines in the file and emit a warning.  Always close
 > every block you open.
 
+## Suppression in non-Python files
+
+The same comment syntax works in any file type that supports `#`-style comments
+(e.g. YAML, Shell, Ruby).  For languages that use other comment styles, use the
+appropriate single-line comment prefix followed by `vaultmap: ignore`:
+
+```javascript
+const DUMMY_KEY = "AKIAIOSFODNN7EXAMPLE"; // vaultmap: ignore
+```
+
+```xml
+<!-- vaultmap: ignore-start -->
+<accessKey>AKIAIOSFODNN7EXAMPLE</accessKey>
+<!-- vaultmap: ignore-end -->
+```
+
 ## Precedence
 
 Inline suppression is applied **before** the allowlist and baseline checks.
