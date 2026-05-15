@@ -75,3 +75,16 @@ def tags_summary(tagged: Sequence[TaggedMatch]) -> dict[str, int]:
         for tag in tm.tags:
             counts[tag] = counts.get(tag, 0) + 1
     return dict(sorted(counts.items()))
+
+
+def filter_by_tag(tagged: Sequence[TaggedMatch], tag: str) -> list[TaggedMatch]:
+    """Return only the TaggedMatches that include the given tag.
+
+    Args:
+        tagged: A sequence of TaggedMatch instances to filter.
+        tag: The exact tag string to match against each item's tag list.
+
+    Returns:
+        A list of TaggedMatch objects whose tags contain ``tag``.
+    """
+    return [tm for tm in tagged if tag in tm.tags]
